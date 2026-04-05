@@ -1,0 +1,14 @@
+# 依赖目录
+node_modules/
+
+# 编译生成的静态目录
+dist/
+
+# 系统生成的文件
+.DS_Store
+Thumbs.db
+*.log
+
+# 编辑器配置文件
+.vscode/
+.idea/

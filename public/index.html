@@ -163,6 +163,9 @@
     </div>
 
     <script>
+        // 构建脚本会在此处注入数据
+        const windowTreeData = [];
+
         document.addEventListener('DOMContentLoaded', () => {
             // 从 localStorage 读取折叠状态
             let treeState = {};
@@ -180,32 +183,8 @@
                 localStorage.setItem('docsify_tree_state', JSON.stringify(treeState));
             };
 
-            // 优先尝试从 sessionStorage 中获取缓存的树数据，加快渲染
-            const cachedTree = sessionStorage.getItem('docsify_tree_data');
-            if (cachedTree) {
-                try {
-                    const data = JSON.parse(cachedTree);
-                    renderTree(data, treeState);
-                } catch (e) {
-                    console.error('Failed to parse cached tree:', e);
-                }
-            }
-
-            // 发起请求获取最新的树数据，改为请求静态 JSON 文件
-            fetch('tree.json')
-                .then(response => response.json())
-                .then(data => {
-                    // 更新缓存
-                    sessionStorage.setItem('docsify_tree_data', JSON.stringify(data));
-                    // 渲染树
-                    renderTree(data, treeState);
-                })
-                .catch(err => {
-                    console.error('Error fetching tree:', err);
-                    if (!cachedTree) {
-                        document.getElementById('tree-container').innerHTML = '<p style="text-align:center;color:red;">加载失败，请刷新重试</p>';
-                    }
-                });
+            // 直接使用注入的数据渲染树
+            renderTree(windowTreeData, treeState);
 
             function renderTree(data, treeState) {
                 const container = document.getElementById('tree-container');
@@ -294,10 +273,12 @@
                     `;
                 } else if (node.type === 'file') {
                     // Encode path to handle spaces and special chars
-                    const encodedPath = encodeURIComponent(node.path);
+                    // node.path is now something like Web/HTML/1.html
+                    const pathParts = node.path.split('/');
+                    const encodedPath = pathParts.map(p => encodeURIComponent(p)).join('/');
                     html += `
                         <li>
-                            <a href="preview.html?file=${encodedPath}" class="tree-node file">
+                            <a href="content/${encodedPath}" class="tree-node file">
                                 <span class="icon icon-file"></span>
                                 <span class="name">${node.name.replace(/\.md$/, '')}</span>
                             </a>

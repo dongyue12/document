@@ -3,59 +3,12 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 3000;
-const CONTENT_DIR = path.join(__dirname, 'content');
-const PUBLIC_DIR = path.join(__dirname, 'public');
-
-// 递归获取文件树结构
-function getFileTree(dir) {
-    const result = [];
-    try {
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-            // 忽略隐藏文件、特殊文件或 img 目录
-            if (file.startsWith('.') || file === 'node_modules' || file.toLowerCase() === 'img') continue;
-
-            const filePath = path.join(dir, file);
-            const stat = fs.statSync(filePath);
-
-            if (stat.isDirectory()) {
-                result.push({
-                    name: file,
-                    type: 'directory',
-                    path: path.relative(CONTENT_DIR, filePath).replace(/\\/g, '/'),
-                    children: getFileTree(filePath)
-                });
-            } else if (stat.isFile() && file.endsWith('.md')) { // 只处理markdown文件
-                result.push({
-                    name: file,
-                    type: 'file',
-                    path: path.relative(CONTENT_DIR, filePath).replace(/\\/g, '/')
-                });
-            }
-        }
-    } catch (e) {
-        console.error('Error reading directory:', e);
-    }
-    
-    // 排序：文件夹在前，文件在后，并且支持自然排序（如 1.md, 2.md, 10.md）
-    return result.sort((a, b) => {
-        if (a.type === b.type) {
-            // README.md 排在最前面
-            if (a.name.toLowerCase() === 'readme.md') return -1;
-            if (b.name.toLowerCase() === 'readme.md') return 1;
-            
-            // 自然排序：正确处理数字前缀（1, 2, 10）
-            return a.name.localeCompare(b.name, 'zh-CN', { numeric: true });
-        }
-        return a.type === 'directory' ? -1 : 1;
-    });
-}
+const DIST_DIR = path.join(__dirname, 'dist');
 
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'text/javascript',
-    '.md': 'text/markdown',
     '.json': 'application/json',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
@@ -72,28 +25,13 @@ const server = http.createServer((req, res) => {
         url = url.substring(0, queryIndex);
     }
 
-    // 处理 /api/tree 接口
-    if (url === '/api/tree') {
-        const tree = getFileTree(CONTENT_DIR);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(tree));
-        return;
-    }
-
     // 处理根路径
     if (url === '/') {
         url = '/index.html';
     }
 
-    // 确定文件的真实路径
-    let filePath;
-    if (url.startsWith('/content/')) {
-        // 请求content目录下的文件（如markdown文件或图片）
-        filePath = path.join(__dirname, decodeURIComponent(url));
-    } else {
-        // 请求public目录下的静态文件（HTML, CSS, JS）
-        filePath = path.join(PUBLIC_DIR, decodeURIComponent(url));
-    }
+    // 所有请求都在 dist 目录下查找
+    let filePath = path.join(DIST_DIR, decodeURIComponent(url));
 
     const extname = path.extname(filePath).toLowerCase();
     let contentType = MIME_TYPES[extname] || 'application/octet-stream';

@@ -1,0 +1,14 @@
+{
+  "name": "personal-knowledge-base",
+  "version": "1.0.0",
+  "description": "Personal knowledge base with static site generation",
+  "main": "server.js",
+  "scripts": {
+    "server": "node server.js",
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "highlight.js": "^11.9.0",
+    "marked": "^12.0.0"
+  }
+}

@@ -1,0 +1,227 @@
+/* 引入本地微软雅黑字体 */
+@font-face {
+    font-family: 'Local Microsoft YaHei';
+    src: url('../fonts/msyh.ttc') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+:root {
+    --primary-color: #42b983; /* docsify default green */
+    --bg-color: #ffffff;
+    --text-color: #2c3e50;
+    --border-color: #eaecef;
+}
+
+body {
+    /* 优先使用本地引入的微软雅黑字体 */
+    font-family: 'Local Microsoft YaHei', 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.8; /* 进一步增加行高，提升阅读体验 */
+    color: var(--text-color);
+    background-color: var(--bg-color);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center; /* 居中显示 */
+    height: 100vh; /* 固定页面高度 */
+    overflow: hidden; /* 禁止外层滚动 */
+    /* 优化字体渲染抗锯齿 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    padding: 40px 20px;
+    height: 85vh; /* 中间盒子固定高度 */
+    overflow-y: auto; /* 允许中间内容滚动 */
+    
+    /* 隐藏滚动条 */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* 隐藏 Chrome, Safari and Opera 的滚动条 */
+.container::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-header {
+    margin-bottom: 30px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.back-btn {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+
+.back-btn::before {
+    content: '←';
+    margin-right: 5px;
+}
+
+.title {
+    color: #999;
+    font-size: 0.9em;
+}
+
+/* Markdown Styles similar to github/docsify */
+.markdown-body {
+    font-size: 16px;
+    word-wrap: break-word;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #2c3e50;
+}
+
+.markdown-body h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--border-color); }
+.markdown-body h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--border-color); }
+
+.markdown-body p, .markdown-body blockquote, .markdown-body ul, .markdown-body ol, .markdown-body dl, .markdown-body table, .markdown-body pre, .markdown-body details {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.markdown-body blockquote {
+    padding: 0 1em;
+    color: #6a737d;
+    border-left: 0.25em solid #dfe2e5;
+}
+
+.markdown-body a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.markdown-body code {
+    padding: .2em .4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: rgba(27,31,35,.05);
+    border-radius: 3px;
+    /* 使用引入的 Fira Code 等宽字体 */
+    font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+}
+
+.markdown-body pre {
+    word-wrap: normal;
+    background-color: #f6f8fa;
+    border-radius: 3px;
+    padding: 16px;
+    overflow: auto;
+    line-height: 1.45;
+    position: relative; /* 为复制按钮提供定位基准 */
+}
+
+/* 复制按钮样式 */
+.copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #6a737d;
+    background-color: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease-in-out;
+    font-family: inherit;
+}
+
+.markdown-body pre:hover .copy-btn {
+    opacity: 1;
+}
+
+.copy-btn:hover {
+    color: #24292e;
+    background-color: #f3f4f6;
+    border-color: #d1d5da;
+}
+
+.copy-btn.copied {
+    color: #28a745;
+    border-color: #28a745;
+}
+
+.markdown-body pre code {
+    display: inline;
+    max-width: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    line-height: inherit;
+    word-wrap: normal;
+    background-color: transparent;
+    border: 0;
+}
+
+.markdown-body img {
+    max-width: 100%;
+    box-sizing: content-box;
+    background-color: #fff;
+}
+
+.markdown-body table {
+    display: block;
+    width: 100%;
+    overflow: auto;
+    border-spacing: 0;
+    border-collapse: collapse;
+}
+
+.markdown-body table th, .markdown-body table td {
+    padding: 6px 13px;
+    border: 1px solid #dfe2e5;
+}
+
+.markdown-body table tr {
+    background-color: #fff;
+    border-top: 1px solid #c6cbd1;
+}
+
+.markdown-body table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+}
+
+#content {
+    min-height: 200px;
+}
+
+.loading {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+}
+
+.error {
+    color: #e74c3c;
+    background: #fdf0ed;
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid #e74c3c;
+}

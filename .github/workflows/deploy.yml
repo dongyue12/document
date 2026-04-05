@@ -35,13 +35,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build File Tree
-        run: node build.js
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Prepare Public Directory
-        run: |
-          # 确保将 content 文件夹复制到 public 目录下，以便相对路径可以正确访问 markdown 和图片
-          cp -r content public/content
+      - name: Build File Tree and HTML
+        run: node build.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -51,8 +49,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # 上传 public 目录中的内容
-          path: './public'
+          # 上传 dist 目录中的内容
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -29,19 +29,27 @@
 
 ## 本地运行与开发
 
-项目依赖于 [Node.js](https://nodejs.org/) 环境，无需 `npm install` 安装额外的第三方包。
+项目使用了 `marked` 和 `highlight.js` 进行静态页面的构建。
 
-### 1. 启动本地服务 (推荐)
-在项目根目录下执行以下命令，启动本地预览服务器：
+### 1. 安装依赖
+
+在首次运行前，请先安装必要的构建依赖：
+
 ```bash
-node server.js
+npm install
+```
+
+### 2. 启动本地服务 (推荐)
+在项目根目录下执行以下命令，会自动构建并启动本地预览服务器：
+```bash
+npm run build && npm start
 ```
 随后在浏览器中访问：[http://localhost:3000](http://localhost:3000)
 
-### 2. 手动构建静态目录树
-如果你需要在不启动 `server.js` 的情况下生成最新的 `tree.json` 静态文件，可以运行：
+### 3. 手动构建静态目录树
+如果你只需要生成最新的静态 HTML 文件，可以运行：
 ```bash
-node build.js
+npm run build
 ```
 
 ## 内容管理规范
