@@ -43,7 +43,7 @@ function generateHtml(title, contentHtml, depth) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title} - 预览</title>
+    <title>${title}</title>
     <link rel="stylesheet" href="${rootPath}css/github.min.css">
     <link rel="stylesheet" href="${rootPath}css/preview.css">
     <link rel="shortcut icon" href="${rootPath}favicon.ico?v=2" type="image/x-icon">

@@ -1,9 +1,10 @@
 /* 引入本地微软雅黑字体 */
 @font-face {
     font-family: 'Local Microsoft YaHei';
-    src: url('../fonts/msyh.ttc') format('truetype');
+    src: local('Microsoft YaHei'), local('微软雅黑'), url('../fonts/msyh.ttc') format('truetype');
     font-weight: normal;
     font-style: normal;
+    font-display: swap; /* 优化字体加载体验 */
 }
 
 :root {
