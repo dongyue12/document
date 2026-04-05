@@ -3,9 +3,9 @@ const path = require('path');
 const { marked } = require('marked');
 const hljs = require('highlight.js');
 
-const CONTENT_DIR = path.join(__dirname, 'content');
-const PUBLIC_DIR = path.join(__dirname, 'public');
-const DIST_DIR = path.join(__dirname, 'dist');
+const CONTENT_DIR = path.join(__dirname, '..', '..', 'content');
+const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
+const DIST_DIR = path.join(__dirname, '..', '..', 'dist');
 const DIST_CONTENT_DIR = path.join(DIST_DIR, 'content');
 
 // 递归拷贝目录的函数
@@ -190,7 +190,7 @@ if (!fs.existsSync(DIST_CONTENT_DIR)) {
 
 const tree = processDirectory(CONTENT_DIR);
 
-// 将文件树数据直接写入 public/index.html 中
+// 将文件树数据直接注入 public/index.html 中
 const indexHtmlPath = path.join(PUBLIC_DIR, 'index.html');
 let indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
 indexHtml = indexHtml.replace(

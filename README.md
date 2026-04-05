@@ -13,18 +13,20 @@
 │   ├── Web/             # 分类文件夹 (例如 HTML, CSS)
 │   └── git/             # 分类文件夹 (Git 笔记)
 ├── public/              # 静态网页资源目录
+│   ├── css/             # 样式文件
 │   ├── fonts/           # 字体文件
-│   ├── index.html       # 网站前端主页面
-│   └── preview.html     # 预览页面
-├── build.js             # 构建脚本，用于在静态部署时生成文档树 (tree.json)
-└── server.js            # 本地开发 HTTP 服务器
+│   ├── js/              # 构建和服务器脚本
+│   │   ├── build.js     # 构建脚本，用于将 Markdown 转换为静态 HTML 站点
+│   │   └── server.js    # 本地静态文件服务器 (代理 dist 目录)
+│   └── index.html       # 网站前端主页面
 ```
 
 ## 核心特性
 
-- **自动化文档树**：能够递归遍历 `content` 目录，自动忽略隐藏文件及特定文件夹，生成结构化的导航数据。
+- **自动化文档树**：能够递归遍历 `content` 目录，自动忽略隐藏文件及特定文件夹，生成结构化的导航数据并注入到首页。
 - **智能排序**：支持文件名自然排序（正确处理 `1.md`, `2.md`, `10.md` 的顺序），并默认将 `README.md` 置顶展示。
-- **内置本地服务器**：`server.js` 提供了一个轻量的 HTTP 服务，支持 `/api/tree` 接口动态获取目录，并配置了文件协商缓存与强缓存策略。
+- **静态站点生成 (SSG)**：通过 `build.js` 将 Markdown 转换为纯静态的 HTML 页面，配合代码高亮和样式，提供极速的访问体验。
+- **内置本地服务器**：`server.js` 提供了一个轻量的 HTTP 服务，用于在本地预览 `dist` 目录下的静态构建产物，并配置了基础的缓存策略。
 - **自动化部署 (CI/CD)**：代码推送到 `main` 或 `master` 分支后，GitHub Actions 会自动打包并发布至 GitHub Pages。
 
 ## 本地运行与开发
@@ -40,14 +42,19 @@ npm install
 ```
 
 ### 2. 启动本地服务 (推荐)
+
 在项目根目录下执行以下命令，会自动构建并启动本地预览服务器：
+
 ```bash
-npm run build && npm start
+npm run build && npm server
 ```
-随后在浏览器中访问：[http://localhost:3000](http://localhost:3000)
+
+随后在浏览器中访问：<http://localhost:3000>
 
 ### 3. 手动构建静态目录树
+
 如果你只需要生成最新的静态 HTML 文件，可以运行：
+
 ```bash
 npm run build
 ```

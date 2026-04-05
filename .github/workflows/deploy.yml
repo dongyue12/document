@@ -39,7 +39,7 @@ jobs:
         run: npm install
 
       - name: Build File Tree and HTML
-        run: node build.js
+        run: node public/js/build.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

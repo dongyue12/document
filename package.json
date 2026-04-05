@@ -2,10 +2,10 @@
   "name": "personal-knowledge-base",
   "version": "1.0.0",
   "description": "Personal knowledge base with static site generation",
-  "main": "server.js",
+  "main": "public/js/server.js",
   "scripts": {
-    "server": "node server.js",
-    "build": "node build.js"
+    "server": "node public/js/server.js",
+    "build": "node public/js/build.js"
   },
   "dependencies": {
     "highlight.js": "^11.9.0",
