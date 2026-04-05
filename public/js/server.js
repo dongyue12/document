@@ -38,6 +38,10 @@ const server = http.createServer((req, res) => {
 
     const extname = path.extname(filePath).toLowerCase();
     let contentType = MIME_TYPES[extname] || 'application/octet-stream';
+    const isText = ['.html', '.css', '.js', '.json', '.svg'].includes(extname);
+    if (isText && !contentType.includes('charset=')) {
+        contentType = `${contentType}; charset=utf-8`;
+    }
 
     // 尝试获取文件状态，以便设置缓存
     fs.stat(filePath, (err, stat) => {
@@ -83,7 +87,11 @@ const server = http.createServer((req, res) => {
                 res.end(`Server Error: ${err.code}`);
             } else {
                 res.writeHead(200, headers);
-                res.end(content, 'utf-8');
+                if (isText) {
+                    res.end(content, 'utf-8');
+                } else {
+                    res.end(content);
+                }
             }
         });
     });
