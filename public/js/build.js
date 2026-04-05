@@ -194,7 +194,7 @@ const tree = processDirectory(CONTENT_DIR);
 const indexHtmlPath = path.join(PUBLIC_DIR, 'index.html');
 let indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
 indexHtml = indexHtml.replace(
-    /const windowTreeData = \[\];/,
+    /const windowTreeData = \[.*\];/s,
     `const windowTreeData = ${JSON.stringify(tree, null, 4)};`
 );
 

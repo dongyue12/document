@@ -14,7 +14,8 @@ const MIME_TYPES = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
-    '.svg': 'image/svg+xml'
+    '.svg': 'image/svg+xml',
+    '.ttc': 'font/collection' // 添加了 ttc 字体类型
 };
 
 const server = http.createServer((req, res) => {
