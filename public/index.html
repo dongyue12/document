@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>资料库</title>
-    <link rel="shortcut icon" href="/favicon.ico?v=2" type="image/x-icon">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
         /* 引入本地微软雅黑字体 */
         @font-face {
@@ -361,7 +361,7 @@
                         if (!isNaN(scrollPos)) {
                             // 使用 setTimeout 确保 DOM 已经完全渲染
                             setTimeout(() => {
-                                container.scrollTop = scrollPos;
+                                document.querySelector('.container').scrollTop = scrollPos;
                             }, 0);
                         }
                     }
@@ -370,8 +370,8 @@
                 }
 
                 // 监听滚动事件，保存滚动位置
-                container.addEventListener('scroll', () => {
-                    localStorage.setItem('docsify_tree_scroll', container.scrollTop);
+                document.querySelector('.container').addEventListener('scroll', () => {
+                    localStorage.setItem('docsify_tree_scroll', document.querySelector('.container').scrollTop);
                 });
 
                 // Add click listeners for folders
