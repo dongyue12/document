@@ -46,7 +46,7 @@ function generateHtml(title, contentHtml, depth) {
     <title>${title} - 预览</title>
     <link rel="stylesheet" href="${rootPath}css/github.min.css">
     <link rel="stylesheet" href="${rootPath}css/preview.css">
-    <link rel="icon" href="${rootPath}favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="${rootPath}favicon.ico?v=2" type="image/x-icon">
 </head>
 <body>
     <div class="container">
