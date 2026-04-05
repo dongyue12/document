@@ -44,12 +44,9 @@ function generateHtml(title, contentHtml, depth) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title} - 预览</title>
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css"></noscript>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="${rootPath}css/github.min.css">
     <link rel="stylesheet" href="${rootPath}css/preview.css">
+    <link rel="icon" href="${rootPath}favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container">
@@ -182,6 +179,13 @@ fs.mkdirSync(DIST_DIR, { recursive: true });
 
 // 将 public 目录下的基础静态资源 (index.html, css等) 拷贝到 dist
 copyDir(PUBLIC_DIR, DIST_DIR);
+
+// 将根目录下的 favicon.ico 拷贝到 dist
+const ROOT_DIR = path.join(__dirname, '..', '..');
+const faviconPath = path.join(ROOT_DIR, 'favicon.ico');
+if (fs.existsSync(faviconPath)) {
+    fs.copyFileSync(faviconPath, path.join(DIST_DIR, 'favicon.ico'));
+}
 
 // 确保 dist/content 目录存在
 if (!fs.existsSync(DIST_CONTENT_DIR)) {

@@ -15,10 +15,12 @@ const MIME_TYPES = {
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
     '.ttc': 'font/collection' // 添加了 ttc 字体类型
 };
 
 const server = http.createServer((req, res) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
     let url = req.url;
     // 移除查询参数
     const queryIndex = url.indexOf('?');
@@ -68,7 +70,7 @@ const server = http.createServer((req, res) => {
         };
 
         // 对图片等静态资源开启强缓存 (例如 1 天)
-        if (['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttc'].includes(extname)) {
+        if (['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttc', '.ico'].includes(extname)) {
             headers['Cache-Control'] = 'public, max-age=86400';
         } else {
             // 对 HTML, JS, Markdown 文件开启协商缓存，强制每次去服务端验证
