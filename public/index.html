@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资料库 - 类似Docsify</title>
+    <!-- 引入外部字体，增加设计感 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* 引入本地微软雅黑字体 */
+        @font-face {
+            font-family: 'Local Microsoft YaHei';
+            src: url('./fonts/msyh.ttc') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --primary-color: #42b983; /* docsify default green */
+            --bg-color: #f8f8f8;
+            --text-color: #2c3e50;
+            --hover-bg: #f3f4f5;
+            --border-color: #eaecef;
+        }
+
+        body {
+            /* 优先使用本地引入的微软雅黑字体 */
+            font-family: 'Local Microsoft YaHei', 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: white; /* 极简风格，使用纯白背景 */
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center; /* 居中显示 */
+            height: 100vh; /* 固定整个页面高度 */
+            overflow: hidden; /* 禁止整个页面滚动 */
+            /* 优化字体渲染抗锯齿，使文字在不同屏幕上看起来更平滑 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            height: 80vh; /* 中间盒子固定高度（比如占据屏幕80%） */
+            overflow-y: auto; /* 允许中间盒子滚动 */
+            /* 隐藏滚动条 */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* 隐藏 Chrome, Safari and Opera 的滚动条 */
+        .container::-webkit-scrollbar {
+            display: none;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color); /* 改为深色字体，更简洁 */
+            margin-bottom: 40px;
+            font-weight: 300;
+            font-size: 2em;
+            letter-spacing: 1px;
+        }
+
+        /* File Tree Styles */
+        .tree {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .tree ul {
+            list-style: none;
+            padding-left: 20px; /* 减小缩进距离 */
+            display: none; /* Default hidden */
+            border-left: 1px solid var(--border-color); /* 添加竖线 */
+            margin-left: 12px; /* 让竖线与上级箭头对齐 */
+        }
+
+        .tree ul.open {
+            display: block;
+        }
+
+        .tree li {
+            margin: 8px 0;
+        }
+
+        .tree-node {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 16px;
+        }
+
+        .tree-node:hover {
+            background-color: var(--hover-bg);
+            color: var(--primary-color);
+        }
+
+        .tree-node.file {
+            text-decoration: none;
+            color: var(--text-color);
+        }
+
+        .tree-node.file:hover {
+            color: var(--primary-color);
+        }
+
+        .name {
+            font-weight: 400;
+        }
+
+        .icon {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            text-align: center;
+            line-height: 16px;
+        }
+
+        /* SVG Icons */
+        .icon-folder::before {
+            content: '▶';
+            font-size: 10px;
+            color: #999;
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+
+        .icon-folder-open::before {
+            content: '▼';
+            font-size: 10px;
+            color: var(--primary-color);
+            display: inline-block;
+        }
+
+        .icon-file {
+            display: none; /* 极简风格，隐藏文件图标 */
+        }
+
+        .loading {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>我的资料库</h1>
+        <div id="tree-container" class="loading">加载中...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 从 localStorage 读取折叠状态
+            let treeState = {};
+            try {
+                const savedState = localStorage.getItem('docsify_tree_state');
+                if (savedState) {
+                    treeState = JSON.parse(savedState);
+                }
+            } catch (e) {
+                console.error('Failed to parse tree state:', e);
+            }
+
+            // 保存状态到 localStorage 的函数
+            const saveState = () => {
+                localStorage.setItem('docsify_tree_state', JSON.stringify(treeState));
+            };
+
+            // 优先尝试从 sessionStorage 中获取缓存的树数据，加快渲染
+            const cachedTree = sessionStorage.getItem('docsify_tree_data');
+            if (cachedTree) {
+                try {
+                    const data = JSON.parse(cachedTree);
+                    renderTree(data, treeState);
+                } catch (e) {
+                    console.error('Failed to parse cached tree:', e);
+                }
+            }
+
+            // 发起请求获取最新的树数据，改为请求静态 JSON 文件
+            fetch('tree.json')
+                .then(response => response.json())
+                .then(data => {
+                    // 更新缓存
+                    sessionStorage.setItem('docsify_tree_data', JSON.stringify(data));
+                    // 渲染树
+                    renderTree(data, treeState);
+                })
+                .catch(err => {
+                    console.error('Error fetching tree:', err);
+                    if (!cachedTree) {
+                        document.getElementById('tree-container').innerHTML = '<p style="text-align:center;color:red;">加载失败，请刷新重试</p>';
+                    }
+                });
+
+            function renderTree(data, treeState) {
+                const container = document.getElementById('tree-container');
+                container.innerHTML = '';
+                container.classList.remove('loading');
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;">没有找到任何文档</p>';
+                    return;
+                }
+
+                const treeHtml = createTreeHtml(data, '', treeState);
+                const ul = document.createElement('ul');
+                ul.className = 'tree';
+                ul.innerHTML = treeHtml;
+                container.appendChild(ul);
+
+                // 恢复滚动位置
+                try {
+                    const savedScroll = localStorage.getItem('docsify_tree_scroll');
+                    if (savedScroll) {
+                        const scrollPos = parseInt(savedScroll, 10);
+                        if (!isNaN(scrollPos)) {
+                            // 使用 setTimeout 确保 DOM 已经完全渲染
+                            setTimeout(() => {
+                                container.scrollTop = scrollPos;
+                            }, 0);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to restore scroll position:', e);
+                }
+
+                // 监听滚动事件，保存滚动位置
+                container.addEventListener('scroll', () => {
+                    localStorage.setItem('docsify_tree_scroll', container.scrollTop);
+                });
+
+                // Add click listeners for folders
+                const folders = container.querySelectorAll('.tree-node.folder');
+                folders.forEach(folder => {
+                    folder.addEventListener('click', function() {
+                        const parentLi = this.parentElement;
+                        const childUl = parentLi.querySelector('ul');
+                        const icon = this.querySelector('.icon');
+                        const pathId = this.getAttribute('data-path');
+                        
+                        if (childUl) {
+                            childUl.classList.toggle('open');
+                            const isOpen = childUl.classList.contains('open');
+                            
+                            if (isOpen) {
+                                icon.classList.remove('icon-folder');
+                                icon.classList.add('icon-folder-open');
+                                treeState[pathId] = true;
+                            } else {
+                                icon.classList.remove('icon-folder-open');
+                                icon.classList.add('icon-folder');
+                                treeState[pathId] = false;
+                            }
+                            saveState();
+                        }
+                    });
+                });
+            }
+        });
+
+        function createTreeHtml(nodes, currentPath = '', treeState = {}) {
+            let html = '';
+            for (const node of nodes) {
+                const nodePath = currentPath ? `${currentPath}/${node.name}` : node.name;
+                
+                if (node.type === 'directory') {
+                    const isOpen = treeState[nodePath] === true;
+                    const folderIcon = isOpen ? 'icon-folder-open' : 'icon-folder';
+                    const ulClass = isOpen ? 'open' : '';
+                    
+                    html += `
+                        <li>
+                            <div class="tree-node folder" data-path="${nodePath}">
+                                <span class="icon ${folderIcon}"></span>
+                                <span class="name">${node.name}</span>
+                            </div>
+                            <ul class="${ulClass}">${createTreeHtml(node.children, nodePath, treeState)}</ul>
+                        </li>
+                    `;
+                } else if (node.type === 'file') {
+                    // Encode path to handle spaces and special chars
+                    const encodedPath = encodeURIComponent(node.path);
+                    html += `
+                        <li>
+                            <a href="preview.html?file=${encodedPath}" class="tree-node file">
+                                <span class="icon icon-file"></span>
+                                <span class="name">${node.name.replace(/\.md$/, '')}</span>
+                            </a>
+                        </li>
+                    `;
+                }
+            }
+            return html;
+        }
+    </script>
+</body>
+</html>
