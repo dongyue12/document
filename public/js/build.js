@@ -261,7 +261,15 @@ async function build(options = {}) {
         fs.mkdirSync(DIST_CONTENT_DIR, { recursive: true });
     }
 
-    const routes = {};
+    const routesPath = path.join(DIST_DIR, 'routes.json');
+    let routes = {};
+    if (incremental && fs.existsSync(routesPath)) {
+        try {
+            routes = JSON.parse(await fsp.readFile(routesPath, 'utf-8'));
+        } catch (e) {
+            routes = {};
+        }
+    }
     const tree = await processDirectoryAsync(CONTENT_DIR, routes, incremental, isDev);
 
     await fsp.writeFile(path.join(DIST_DIR, 'routes.json'), JSON.stringify(routes, null, 2), 'utf-8');
