@@ -145,8 +145,9 @@ async function processDirectoryAsync(dir, routes, incremental, isDev) {
                 const lastMtime = mtimeCache.get(filePath);
                 const currentMtime = stat.mtimeMs;
 
-                // 增量构建逻辑
-                if (incremental && lastMtime === currentMtime && fs.existsSync(outContentFilePath)) {
+                // 增量构建逻辑，判断 dist 根目录下的产物是否存在
+                const outFilePathCheck = path.join(DIST_DIR, outFileName);
+                if (incremental && lastMtime === currentMtime && fs.existsSync(outFilePathCheck)) {
                     return treeNode;
                 }
                 mtimeCache.set(filePath, currentMtime);
@@ -185,15 +186,13 @@ async function processDirectoryAsync(dir, routes, incremental, isDev) {
 
                 const htmlContent = marked.parse(markdownContent, { renderer });
                 const title = file.replace(/\.md$/, '');
-                const depth = relativePath.split('/').length;
+                // 深度用于引入 CSS 和返回首页，因为 HTML 生成在 dist 根目录，所以深度固定为 0
+                const depth = 0;
                 const finalHtml = generateHtml(title, htmlContent, depth, isDev);
                 
-                const outDir = path.dirname(outContentFilePath);
-                if (!fs.existsSync(outDir)) {
-                    await fsp.mkdir(outDir, { recursive: true });
-                }
-                
-                await fsp.writeFile(outContentFilePath, finalHtml, 'utf-8');
+                // 将文件写入 dist 根目录
+                const outFilePath = path.join(DIST_DIR, outFileName);
+                await fsp.writeFile(outFilePath, finalHtml, 'utf-8');
                 return treeNode;
             } else if (stat.isFile() && !file.endsWith('.md')) {
                 const outFilePath = path.join(DIST_CONTENT_DIR, relativePath);

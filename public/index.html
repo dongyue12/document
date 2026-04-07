@@ -423,13 +423,14 @@
                         </li>
                     `;
                 } else if (node.type === 'file') {
-                    // Encode path to handle spaces and special chars
-                    // node.path is now something like Web/HTML/1.html
+                    // 对路径进行编码处理，并考虑到 GitHub Pages 等部署环境的子路径问题
                     const pathParts = node.path.split('/');
                     const encodedPath = pathParts.map(p => encodeURIComponent(p)).join('/');
+                    // 为了兼容 GitHub Pages，确保相对路径以 ./ 开头，或者依赖 base 标签
+                    // 这里我们使用 ./ 来让浏览器基于当前 index.html 的路径进行解析
                     html += `
                         <li>
-                            <a href="${encodedPath}" class="tree-node file">
+                            <a href="./${encodedPath}" class="tree-node file">
                                 <span class="icon icon-file"></span>
                                 <span class="name">${node.name.replace(/\.md$/, '')}</span>
                             </a>
