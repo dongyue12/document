@@ -3,11 +3,14 @@ const fsp = require('fs').promises;
 const path = require('path');
 const { marked } = require('marked');
 const hljs = require('highlight.js');
+const yaml = require('js-yaml');
 
 const CONTENT_DIR = path.join(__dirname, '..', '..', 'content');
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const DIST_DIR = path.join(__dirname, '..', '..', 'dist');
 const DIST_CONTENT_DIR = path.join(DIST_DIR, 'content');
+const FRIEND_CONFIG_PATH = path.join(CONTENT_DIR, 'friend', 'friend.yml');
+const FRIEND_PAGE_RELATIVE_PATH = 'friend/我的好友.html';
 
 // 缓存文件最后修改时间，用于增量构建
 const mtimeCache = new Map();
@@ -107,6 +110,125 @@ function generateHtml(title, contentHtml, depth, isDev) {
 </html>`;
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function safeHttpUrl(value) {
+    if (!value) return null;
+    try {
+        const u = new URL(String(value));
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+        return u.toString();
+    } catch {
+        return null;
+    }
+}
+
+function normalizeFriendConfig(raw) {
+    if (Array.isArray(raw)) {
+        return { title: '友链', links: raw };
+    }
+    if (raw && typeof raw === 'object') {
+        const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : '友链';
+        const links = Array.isArray(raw.links) ? raw.links : [];
+        return { title, links };
+    }
+    return { title: '友链', links: [] };
+}
+
+function renderFriendLinksHtml(config) {
+    const title = typeof config.title === 'string' && config.title.trim() ? config.title.trim() : '我的好友';
+    const cards = (config.links || [])
+        .filter(item => item && typeof item === 'object')
+        .map(item => {
+            const name = typeof item.title === 'string' ? item.title.trim() : (typeof item.name === 'string' ? item.name.trim() : '');
+            const url = safeHttpUrl(item.url);
+            if (!name || !url) return '';
+
+            const desc = typeof item.desc === 'string' ? item.desc.trim() : '';
+            const avatar = safeHttpUrl(item.img || item.avatar);
+
+            const avatarHtml = avatar
+                ? `<img class="friend-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(name)}" loading="lazy" />`
+                : `<div class="friend-avatar friend-avatar-fallback"></div>`;
+
+            const descHtml = desc ? `<div class="friend-desc">${escapeHtml(desc)}</div>` : '';
+
+            return `
+                <a class="friend-card" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+                    ${avatarHtml}
+                    <div class="friend-meta">
+                        <div class="friend-name">${escapeHtml(name)}</div>
+                        ${descHtml}
+                    </div>
+                </a>
+            `;
+        })
+        .filter(Boolean)
+        .join('');
+
+    const contentHtml = `
+        <style>
+            .friend-list { display: flex; flex-wrap: wrap; gap: 16px; }
+            .friend-card { display: flex; gap: 12px; padding: 14px; border: 1px solid #eaecef; border-radius: 10px; text-decoration: none; color: inherit; background: #fff; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; flex: 1 0 calc(50% - 8px); min-width: 280px; }
+            .friend-card:hover { border-color: rgba(66,185,131,.55); box-shadow: 0 8px 24px rgba(0,0,0,.06); transform: translateY(-1px); }
+            .friend-avatar { width: 44px; height: 44px; border-radius: 10px; flex: 0 0 auto; object-fit: cover; background: #f3f4f5; }
+            .friend-avatar-fallback { border: 1px solid #eaecef; }
+            .friend-meta { min-width: 0; }
+            .friend-name { font-weight: 600; font-size: 16px; line-height: 1.2; margin-top: 2px; }
+            .friend-desc { margin-top: 6px; font-size: 13px; line-height: 1.35; color: #57606a; }
+        </style>
+        <h1>${escapeHtml(title)}</h1>
+        ${cards ? `<div class="friend-list">${cards}</div>` : '<p>暂无好友链接。</p>'}
+    `;
+
+    return { pageTitle: title, contentHtml };
+}
+
+async function buildFriendLinksPage(routes, incremental, isDev) {
+    if (!fs.existsSync(FRIEND_CONFIG_PATH)) {
+        return null;
+    }
+
+    const stat = await fsp.stat(FRIEND_CONFIG_PATH);
+    const lastMtime = mtimeCache.get(FRIEND_CONFIG_PATH);
+    const currentMtime = stat.mtimeMs;
+    const outFilePath = path.join(DIST_DIR, FRIEND_PAGE_RELATIVE_PATH);
+
+    if (incremental && lastMtime === currentMtime && fs.existsSync(outFilePath)) {
+        return {
+            name: '我的好友.md',
+            type: 'file',
+            path: FRIEND_PAGE_RELATIVE_PATH
+        };
+    }
+    mtimeCache.set(FRIEND_CONFIG_PATH, currentMtime);
+
+    const rawText = await fsp.readFile(FRIEND_CONFIG_PATH, 'utf-8');
+    const rawConfig = yaml.load(rawText);
+    const config = normalizeFriendConfig(rawConfig);
+    const rendered = renderFriendLinksHtml(config);
+    const finalHtml = generateHtml(rendered.pageTitle, rendered.contentHtml, 1, isDev);
+
+    await fsp.mkdir(path.dirname(outFilePath), { recursive: true });
+    await fsp.writeFile(outFilePath, finalHtml, 'utf-8');
+
+    const shortLink = `/${path.basename(FRIEND_PAGE_RELATIVE_PATH)}`;
+    routes[shortLink] = `/${FRIEND_PAGE_RELATIVE_PATH}`;
+
+    return {
+        name: '我的好友.md',
+        type: 'file',
+        path: FRIEND_PAGE_RELATIVE_PATH
+    };
+}
+
 async function processDirectoryAsync(dir, routes, incremental, isDev) {
     const result = [];
     try {
@@ -121,6 +243,24 @@ async function processDirectoryAsync(dir, routes, incremental, isDev) {
 
             if (stat.isDirectory()) {
                 const children = await processDirectoryAsync(filePath, routes, incremental, isDev);
+                if (relativePath === 'friend') {
+                    const friendLinksPageNode = await buildFriendLinksPage(routes, incremental, isDev);
+                    let friendChildren = children;
+                    if (friendLinksPageNode) {
+                        friendChildren = [friendLinksPageNode, ...children];
+                    }
+                    const formatIndex = friendChildren.findIndex(n => n && n.type === 'file' && n.name === '我的友链格式.md');
+                    if (formatIndex > 0) {
+                        const [formatNode] = friendChildren.splice(formatIndex, 1);
+                        friendChildren.unshift(formatNode);
+                    }
+                    return {
+                        name: file,
+                        type: 'directory',
+                        path: relativePath,
+                        children: friendChildren
+                    };
+                }
                 if (file.toLowerCase() !== 'img') {
                     return {
                         name: file,
@@ -195,6 +335,9 @@ async function processDirectoryAsync(dir, routes, incremental, isDev) {
                 await fsp.writeFile(outFilePath, finalHtml, 'utf-8');
                 return treeNode;
             } else if (stat.isFile() && !file.endsWith('.md')) {
+                if (file.endsWith('.yml') || file.endsWith('.yaml')) {
+                    return null;
+                }
                 const outFilePath = path.join(DIST_CONTENT_DIR, relativePath);
                 
                 const lastMtime = mtimeCache.get(filePath);
@@ -269,6 +412,7 @@ async function build(options = {}) {
             routes = {};
         }
     }
+
     const tree = await processDirectoryAsync(CONTENT_DIR, routes, incremental, isDev);
 
     await fsp.writeFile(path.join(DIST_DIR, 'routes.json'), JSON.stringify(routes, null, 2), 'utf-8');
@@ -276,7 +420,7 @@ async function build(options = {}) {
     const indexHtmlPath = path.join(PUBLIC_DIR, 'index.html');
     let indexHtml = await fsp.readFile(indexHtmlPath, 'utf-8');
     indexHtml = indexHtml.replace(
-        /const windowTreeData = \[.*\];/s,
+        /const windowTreeData = \[[\s\S]*?\];/,
         `const windowTreeData = ${JSON.stringify(tree, null, 4)};`
     );
 

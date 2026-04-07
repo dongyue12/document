@@ -52,10 +52,20 @@ const server = http.createServer((req, res) => {
         decodedUrl = decodeURIComponent(decodedUrl);
     } catch(e) {}
 
+    let mappedUrl = null;
     if (routes[decodedUrl]) {
-        targetUrl = routes[decodedUrl];
+        mappedUrl = routes[decodedUrl];
     } else if (routes[url]) {
-        targetUrl = routes[url];
+        mappedUrl = routes[url];
+    }
+
+    if (mappedUrl) {
+        try {
+            const mappedPath = path.join(DIST_DIR, decodeURIComponent(mappedUrl));
+            if (fs.existsSync(mappedPath)) {
+                targetUrl = mappedUrl;
+            }
+        } catch (e) {}
     }
 
     // 所有请求都在 dist 目录下查找
