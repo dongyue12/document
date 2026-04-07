@@ -175,7 +175,9 @@ async function processDirectoryAsync(dir, routes, incremental, isDev) {
                         const [urlPath, hash] = href.split('#');
                         if (urlPath.endsWith('.md')) {
                             const newUrlPath = path.basename(urlPath).replace(/\.md$/, '.html');
-                            newHref = hash ? `${newUrlPath}#${hash}` : newUrlPath;
+                            // 保证链接的 URL 编码，避免中文等特殊字符引起的问题
+                            const encodedUrlPath = encodeURIComponent(newUrlPath);
+                            newHref = hash ? `${encodedUrlPath}#${hash}` : encodedUrlPath;
                         }
                     }
                     return originalLink(newHref, title, text);

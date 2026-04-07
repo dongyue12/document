@@ -46,9 +46,16 @@ const server = http.createServer((req, res) => {
 
     // 如果请求的是通过短链接访问的 HTML，将其映射到真实的 content 路径
     let targetUrl = url;
-    const decodedUrl = decodeURIComponent(url);
+    // 需要多次 decode，防止浏览器传递类似 %25E7%25BC%2596 的二次编码导致匹配不上
+    let decodedUrl = decodeURIComponent(url);
+    try {
+        decodedUrl = decodeURIComponent(decodedUrl);
+    } catch(e) {}
+
     if (routes[decodedUrl]) {
         targetUrl = routes[decodedUrl];
+    } else if (routes[url]) {
+        targetUrl = routes[url];
     }
 
     // 所有请求都在 dist 目录下查找
