@@ -1,0 +1,1 @@
+> 教程地址：【四十分钟JavaScript快速入门 | 无废话且清晰流畅 | 手敲键盘 | WEB前端必备程序语言~】 https://www.bilibili.com/video/BV15L4y1a7or/?p=2&share_source=copy_web&vd_source=dd36b16c8de692be81e4985d87a6b554

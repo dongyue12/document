@@ -33,8 +33,26 @@ const server = http.createServer((req, res) => {
         url = '/index.html';
     }
 
+    // 尝试读取路由表
+    let routes = {};
+    try {
+        const routesPath = path.join(DIST_DIR, 'routes.json');
+        if (fs.existsSync(routesPath)) {
+            routes = JSON.parse(fs.readFileSync(routesPath, 'utf-8'));
+        }
+    } catch (e) {
+        console.error('Failed to load routes.json:', e);
+    }
+
+    // 如果请求的是通过短链接访问的 HTML，将其映射到真实的 content 路径
+    let targetUrl = url;
+    const decodedUrl = decodeURIComponent(url);
+    if (routes[decodedUrl]) {
+        targetUrl = routes[decodedUrl];
+    }
+
     // 所有请求都在 dist 目录下查找
-    let filePath = path.join(DIST_DIR, decodeURIComponent(url));
+    let filePath = path.join(DIST_DIR, decodeURIComponent(targetUrl));
 
     const extname = path.extname(filePath).toLowerCase();
     let contentType = MIME_TYPES[extname] || 'application/octet-stream';

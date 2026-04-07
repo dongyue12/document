@@ -1,4 +1,5 @@
 const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 const { marked } = require('marked');
 const hljs = require('highlight.js');
@@ -8,24 +9,25 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const DIST_DIR = path.join(__dirname, '..', '..', 'dist');
 const DIST_CONTENT_DIR = path.join(DIST_DIR, 'content');
 
-// 递归拷贝目录的函数
-function copyDir(src, dest) {
+// 缓存文件最后修改时间，用于增量构建
+const mtimeCache = new Map();
+
+async function copyDirAsync(src, dest) {
     if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest, { recursive: true });
+        await fsp.mkdir(dest, { recursive: true });
     }
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-    for (let entry of entries) {
+    const entries = await fsp.readdir(src, { withFileTypes: true });
+    await Promise.all(entries.map(async entry => {
         const srcPath = path.join(src, entry.name);
         const destPath = path.join(dest, entry.name);
         if (entry.isDirectory()) {
-            copyDir(srcPath, destPath);
+            await copyDirAsync(srcPath, destPath);
         } else {
-            fs.copyFileSync(srcPath, destPath);
+            await fsp.copyFile(srcPath, destPath);
         }
-    }
+    }));
 }
 
-// 配置 marked
 marked.setOptions({
     highlight: function(code, lang) {
         const language = hljs.getLanguage(lang) ? lang : 'plaintext';
@@ -35,9 +37,20 @@ marked.setOptions({
     breaks: true
 });
 
-// 生成 HTML 的模板
-function generateHtml(title, contentHtml, depth) {
+function generateHtml(title, contentHtml, depth, isDev) {
     const rootPath = '../'.repeat(depth);
+    let devScript = '';
+    if (isDev) {
+        devScript = `
+    <script>
+        const ws = new WebSocket('ws://localhost:3001');
+        ws.onmessage = (e) => {
+            if (e.data === 'reload') {
+                window.location.reload();
+            }
+        };
+    </script>`;
+    }
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -89,76 +102,126 @@ function generateHtml(title, contentHtml, depth) {
                 img.setAttribute('loading', 'lazy');
             });
         });
-    </script>
+    </script>${devScript}
 </body>
 </html>`;
 }
 
-// 递归获取文件树结构并转换 Markdown
-function processDirectory(dir) {
+async function processDirectoryAsync(dir, routes, incremental, isDev) {
     const result = [];
     try {
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-            // 忽略隐藏文件、特殊文件
-            if (file.startsWith('.') || file === 'node_modules') continue;
+        const files = await fsp.readdir(dir);
+        
+        const tasks = files.map(async file => {
+            if (file.startsWith('.') || file === 'node_modules') return null;
 
             const filePath = path.join(dir, file);
-            const stat = fs.statSync(filePath);
+            const stat = await fsp.stat(filePath);
             const relativePath = path.relative(CONTENT_DIR, filePath).replace(/\\/g, '/');
 
             if (stat.isDirectory()) {
-                const children = processDirectory(filePath);
-                // 只有当不是 img 目录时，才加入到侧边栏导航树中
+                const children = await processDirectoryAsync(filePath, routes, incremental, isDev);
                 if (file.toLowerCase() !== 'img') {
-                    result.push({
+                    return {
                         name: file,
                         type: 'directory',
                         path: relativePath,
                         children: children
-                    });
+                    };
                 }
+                return null;
             } else if (stat.isFile() && file.endsWith('.md')) {
-                // 转换 markdown 为 html
-                const markdownContent = fs.readFileSync(filePath, 'utf-8');
-                const htmlContent = marked.parse(markdownContent);
-                const title = file.replace(/\.md$/, '');
+                const outFileName = file.replace(/\.md$/, '.html');
+                const outContentFilePath = path.join(DIST_CONTENT_DIR, relativePath.replace(/\.md$/, '.html'));
                 
-                // 计算相对路径深度，用于引入 css 和返回主页
-                // relativePath 形如 "Web/HTML/1.md" -> 长度为 3。我们要回到 public 目录，还需要加上 content 目录的 1 层。
-                const depth = relativePath.split('/').length;
-                
-                const finalHtml = generateHtml(title, htmlContent, depth);
-                
-                // 写入 dist/content 对应的目录
-                const outFilePath = path.join(DIST_CONTENT_DIR, relativePath.replace(/\.md$/, '.html'));
-                const outDir = path.dirname(outFilePath);
-                if (!fs.existsSync(outDir)) {
-                    fs.mkdirSync(outDir, { recursive: true });
-                }
-                fs.writeFileSync(outFilePath, finalHtml, 'utf-8');
+                routes[`/${outFileName}`] = `/content/${relativePath.replace(/\.md$/, '.html')}`;
 
-                // 树节点中记录 HTML 路径，方便前端直接跳转
-                result.push({
+                const treeNode = {
                     name: file,
                     type: 'file',
-                    path: relativePath.replace(/\.md$/, '.html')
-                });
+                    path: outFileName
+                };
+
+                const lastMtime = mtimeCache.get(filePath);
+                const currentMtime = stat.mtimeMs;
+
+                // 增量构建逻辑
+                if (incremental && lastMtime === currentMtime && fs.existsSync(outContentFilePath)) {
+                    return treeNode;
+                }
+                mtimeCache.set(filePath, currentMtime);
+
+                const markdownContent = await fsp.readFile(filePath, 'utf-8');
+                const renderer = new marked.Renderer();
+                
+                const originalImage = renderer.image.bind(renderer);
+                renderer.image = (href, title, text) => {
+                    let newHref = href;
+                    if (href && !href.startsWith('http') && !href.startsWith('/')) {
+                        const dirPath = path.dirname(relativePath).replace(/\\/g, '/');
+                        if (dirPath === '.') {
+                            newHref = `/content/${href}`;
+                        } else {
+                            newHref = `/content/${dirPath}/${href}`;
+                        }
+                    }
+                    return originalImage(newHref, title, text);
+                };
+                
+                const originalLink = renderer.link.bind(renderer);
+                renderer.link = (href, title, text) => {
+                    let newHref = href;
+                    if (href && !href.startsWith('http') && !href.startsWith('/')) {
+                        const [urlPath, hash] = href.split('#');
+                        if (urlPath.endsWith('.md')) {
+                            const newUrlPath = path.basename(urlPath).replace(/\.md$/, '.html');
+                            newHref = hash ? `${newUrlPath}#${hash}` : newUrlPath;
+                        }
+                    }
+                    return originalLink(newHref, title, text);
+                };
+
+                const htmlContent = marked.parse(markdownContent, { renderer });
+                const title = file.replace(/\.md$/, '');
+                const depth = relativePath.split('/').length;
+                const finalHtml = generateHtml(title, htmlContent, depth, isDev);
+                
+                const outDir = path.dirname(outContentFilePath);
+                if (!fs.existsSync(outDir)) {
+                    await fsp.mkdir(outDir, { recursive: true });
+                }
+                
+                await fsp.writeFile(outContentFilePath, finalHtml, 'utf-8');
+                return treeNode;
             } else if (stat.isFile() && !file.endsWith('.md')) {
-                // 如果是图片或其他非 markdown 文件，直接拷贝到 dist/content 对应的目录
                 const outFilePath = path.join(DIST_CONTENT_DIR, relativePath);
+                
+                const lastMtime = mtimeCache.get(filePath);
+                const currentMtime = stat.mtimeMs;
+                
+                if (incremental && lastMtime === currentMtime && fs.existsSync(outFilePath)) {
+                    return null;
+                }
+                mtimeCache.set(filePath, currentMtime);
+
                 const outDir = path.dirname(outFilePath);
                 if (!fs.existsSync(outDir)) {
-                    fs.mkdirSync(outDir, { recursive: true });
+                    await fsp.mkdir(outDir, { recursive: true });
                 }
-                fs.copyFileSync(filePath, outFilePath);
+                await fsp.copyFile(filePath, outFilePath);
+                return null;
             }
+        });
+        
+        const results = await Promise.all(tasks);
+        for (const item of results) {
+            if (item) result.push(item);
         }
+        
     } catch (e) {
         console.error('Error reading directory:', e);
     }
     
-    // 排序：文件夹在前，文件在后，并且支持自然排序
     return result.sort((a, b) => {
         if (a.type === b.type) {
             if (a.name.toLowerCase() === 'readme.md') return -1;
@@ -169,41 +232,67 @@ function processDirectory(dir) {
     });
 }
 
-console.log('开始构建静态文件树并生成 HTML...');
+async function build(options = {}) {
+    const incremental = options.incremental || false;
+    const isDev = options.isDev || false;
 
-// 每次构建前先清理并重建 dist 目录
-if (fs.existsSync(DIST_DIR)) {
-    fs.rmSync(DIST_DIR, { recursive: true, force: true });
+    console.log(incremental ? '开始增量并行构建...' : '开始全量并行构建...');
+
+    if (!incremental) {
+        if (fs.existsSync(DIST_DIR)) {
+            fs.rmSync(DIST_DIR, { recursive: true, force: true });
+        }
+        fs.mkdirSync(DIST_DIR, { recursive: true });
+        mtimeCache.clear();
+    }
+
+    // 将 public 目录下的基础静态资源拷贝到 dist
+    await copyDirAsync(PUBLIC_DIR, DIST_DIR);
+
+    const ROOT_DIR = path.join(__dirname, '..', '..');
+    const faviconPath = path.join(ROOT_DIR, 'favicon.ico');
+    if (fs.existsSync(faviconPath)) {
+        await fsp.copyFile(faviconPath, path.join(DIST_DIR, 'favicon.ico'));
+    }
+
+    if (!fs.existsSync(DIST_CONTENT_DIR)) {
+        fs.mkdirSync(DIST_CONTENT_DIR, { recursive: true });
+    }
+
+    const routes = {};
+    const tree = await processDirectoryAsync(CONTENT_DIR, routes, incremental, isDev);
+
+    await fsp.writeFile(path.join(DIST_DIR, 'routes.json'), JSON.stringify(routes, null, 2), 'utf-8');
+
+    const indexHtmlPath = path.join(PUBLIC_DIR, 'index.html');
+    let indexHtml = await fsp.readFile(indexHtmlPath, 'utf-8');
+    indexHtml = indexHtml.replace(
+        /const windowTreeData = \[.*\];/s,
+        `const windowTreeData = ${JSON.stringify(tree, null, 4)};`
+    );
+
+    if (isDev) {
+        indexHtml = indexHtml.replace(
+            '</body>',
+            `    <script>
+        const ws = new WebSocket('ws://localhost:3001');
+        ws.onmessage = (e) => {
+            if (e.data === 'reload') {
+                window.location.reload();
+            }
+        };
+    </script>\n</body>`
+        );
+    }
+
+    const distIndexHtmlPath = path.join(DIST_DIR, 'index.html');
+    await fsp.writeFile(distIndexHtmlPath, indexHtml, 'utf-8');
+
+    console.log(`构建完成！已生成静态 HTML 和文件树至: ${DIST_DIR}`);
 }
-fs.mkdirSync(DIST_DIR, { recursive: true });
 
-// 将 public 目录下的基础静态资源 (index.html, css等) 拷贝到 dist
-copyDir(PUBLIC_DIR, DIST_DIR);
-
-// 将根目录下的 favicon.ico 拷贝到 dist
-const ROOT_DIR = path.join(__dirname, '..', '..');
-const faviconPath = path.join(ROOT_DIR, 'favicon.ico');
-if (fs.existsSync(faviconPath)) {
-    fs.copyFileSync(faviconPath, path.join(DIST_DIR, 'favicon.ico'));
+if (require.main === module) {
+    build().catch(console.error);
 }
 
-// 确保 dist/content 目录存在
-if (!fs.existsSync(DIST_CONTENT_DIR)) {
-    fs.mkdirSync(DIST_CONTENT_DIR, { recursive: true });
-}
-
-const tree = processDirectory(CONTENT_DIR);
-
-// 将文件树数据直接注入 public/index.html 中
-const indexHtmlPath = path.join(PUBLIC_DIR, 'index.html');
-let indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
-indexHtml = indexHtml.replace(
-    /const windowTreeData = \[.*\];/s,
-    `const windowTreeData = ${JSON.stringify(tree, null, 4)};`
-);
-
-// 写入 dist/index.html
-const distIndexHtmlPath = path.join(DIST_DIR, 'index.html');
-fs.writeFileSync(distIndexHtmlPath, indexHtml, 'utf-8');
-
-console.log(`构建完成！已生成静态 HTML 和文件树至: ${DIST_DIR}`);
+module.exports = { build };

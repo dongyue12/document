@@ -429,7 +429,7 @@
                     const encodedPath = pathParts.map(p => encodeURIComponent(p)).join('/');
                     html += `
                         <li>
-                            <a href="content/${encodedPath}" class="tree-node file">
+                            <a href="${encodedPath}" class="tree-node file">
                                 <span class="icon icon-file"></span>
                                 <span class="name">${node.name.replace(/\.md$/, '')}</span>
                             </a>
